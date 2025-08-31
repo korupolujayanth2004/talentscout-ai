@@ -1,12 +1,13 @@
-name: Deploy to Hugging Face Space
+name: Deploy Backend to Hugging Face Space
 
 on:
   push:
-    branches: [ "main" ]   # Trigger on push to main
+    branches: [ "main" ]
 
 jobs:
-  deploy:
+  deploy-backend:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -14,24 +15,40 @@ jobs:
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version: 3.10
+          python-version: "3.10"
 
       - name: Install huggingface CLI
         run: |
           python -m pip install --upgrade pip
           pip install huggingface_hub
 
-      - name: Push to Hugging Face Space
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      - name: Configure Git
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
 
+      - name: Prepare backend folder
+        run: |
+          # Create a temporary deployment folder
+          mkdir deploy
+          cp -r backend/* deploy/
+          cp backend/requirements.txt deploy/requirements.txt
+
+      - name: Install backend requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r deploy/requirements.txt
+
+      - name: Push backend to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          cd deploy
           git init
           git lfs install
           git remote add origin https://user:$HF_TOKEN@huggingface.co/spaces/Jayanthk2004/TalentScout-Ai
+          
           git add .
-          git commit -m "Auto deploy from GitHub Actions" || echo "No changes to commit"
+          git commit -m "Auto deploy backend from GitHub Actions" || echo "No changes to commit"
           git branch -M main
           git push --force origin main
