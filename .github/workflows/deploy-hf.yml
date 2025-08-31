@@ -2,7 +2,7 @@ name: Deploy Backend to Hugging Face Space
 
 on:
   push:
-    branches: ["main"]  
+    branches: ["main"]
 
 jobs:
   deploy-backend:
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.10
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
@@ -27,34 +27,43 @@ jobs:
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
 
-      # Prepare deploy directory with a Dockerized FastAPI backend
       - name: Prepare Docker Space payload
         run: |
           rm -rf deploy && mkdir -p deploy
-          # Copy backend sources
-          cp -r backend/* deploy/
-
-          # Ensure requirements.txt exists (adjust if your file is named differently)
-          if [ ! -f deploy/requirements.txt ]; then
-            echo "uvicorn[standard]" >> deploy/requirements.txt
+          # Copy entire backend directory (keeps module path 'backend.main')
+          cp -r backend deploy/backend
+          # Copy backend requirements file to root of deploy
+          if [ -f backend/requirements.txt ]; then
+            cp backend/requirements.txt deploy/requirements.txt
+          else
             echo "fastapi" >> deploy/requirements.txt
+            echo "uvicorn[standard]" >> deploy/requirements.txt
           fi
 
-          # Create Dockerfile for FastAPI on port 7860
+          # Create Dockerfile that runs backend.main:app on port 7860
           cat > deploy/Dockerfile << 'EOF'
           FROM python:3.10-slim
+
           ENV PYTHONDONTWRITEBYTECODE=1 \
               PYTHONUNBUFFERED=1
+
           WORKDIR /app
+
           COPY requirements.txt /app/requirements.txt
           RUN pip install --no-cache-dir -r /app/requirements.txt
-          COPY . /app
-          # Spaces proxy expects Docker Spaces to listen on 7860
+
+          # Copy the backend package under /app/backend
+          COPY backend /app/backend
+
+          # Ensure /app is on Python path (it is by default as WORKDIR)
           ENV PORT=7860
-          CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
+          EXPOSE 7860
+
+          # Start FastAPI using the package path backend.main:app
+          CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "7860"]
           EOF
 
-          # Space metadata: set sdk to docker (not streamlit)
+          # Space metadata (Docker SDK, not Streamlit)
           cat > deploy/README.md << 'EOF'
           ---
           title: TalentScout AI Backend
@@ -64,21 +73,19 @@ jobs:
           sdk: docker
           pinned: false
           ---
-          FastAPI backend for TalentScout AI (Docker Space).
-          - Exposes uvicorn on port 7860
-          - Use the Space base URL as BACKEND_URL in the frontend
+          FastAPI backend (Docker Space) serving at port 7860.
+          Swagger: /docs
           EOF
 
-      - name: Push to Hugging Face Space (Docker)
+      - name: Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           cd deploy
           git init
           git lfs install
-          # Replace owner/space with your Space path
           git remote add origin https://user:${HF_TOKEN}@huggingface.co/spaces/Jayanthk2004/TalentScout-Ai
           git add .
-          git commit -m "Deploy FastAPI backend via GitHub Actions" || echo "No changes to commit"
+          git commit -m "Deploy FastAPI backend (backend.main:app) via GitHub Actions" || echo "No changes to commit"
           git branch -M main
           git push --force origin main
