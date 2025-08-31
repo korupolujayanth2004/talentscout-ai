@@ -26,4 +26,4 @@ class CandidateSessionId(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
-    sentiment: str  
+    sentiment: Optional[str] = None  
