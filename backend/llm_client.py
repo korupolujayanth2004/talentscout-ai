@@ -6,7 +6,7 @@ load_dotenv()
 
 api_key = os.getenv("GROQ_API_KEY")
 client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
-model_name = "llama3-70b-8192"  # example model
+model_name = "llama-3.1-8b-instant" 
 
 def generate_technical_questions(tech_stack):
     prompt = (
