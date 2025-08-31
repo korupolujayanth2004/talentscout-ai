@@ -1,3 +1,14 @@
+---
+title: TalentScout AI
+emoji: 🤖
+colorFrom: blue
+colorTo: green
+sdk: streamlit
+sdk_version: "1.27.0"  
+app_file: frontend/app.py
+pinned: false
+---
+
 # TalentScout AI Hiring Assistant
 
 An intelligent chatbot for technical candidate screening — built with Python, Streamlit, FastAPI, Groq/Llama, and Qdrant.
@@ -33,11 +44,11 @@ An intelligent chatbot for technical candidate screening — built with Python, 
    `pip install -r requirements.txt`
 
 4. **Run Backend API:**  
-    `cd backend`
+    `cd backend`  
     `uvicorn main:app --reload`
 
 5. **Run Frontend/Chat:**  
-    `cd frontend`
+    `cd frontend`  
     `streamlit run app.py`
 
 ## ❓ Usage
@@ -60,5 +71,3 @@ An intelligent chatbot for technical candidate screening — built with Python, 
 ## 📄 License
 
 MIT
-
----
