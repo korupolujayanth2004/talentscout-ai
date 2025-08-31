@@ -24,7 +24,7 @@ An intelligent chatbot for technical candidate screening — built with Python, 
 ## 🔧 Setup & Installation
 
 1. **Clone repo:**  
-   `git clone https://github.com/korupolujayanth2004/talentscout-ai.git && cd talentscout-ai`
+   `git clone https://github.com/korupolujayanth2004/talentscout-ai.git`
 
 2. **Environment:**  
    `python3 -m venv venv && source venv/bin/activate`
