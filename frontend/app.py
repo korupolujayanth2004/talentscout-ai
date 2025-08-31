@@ -3,6 +3,8 @@ import requests
 import re
 import time
 import os
+import html
+
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 
 # Page configuration with dark theme
@@ -315,7 +317,8 @@ elif st.session_state.step == 2:
 
     if send_button and user_input.strip():
         # Always add user message to history
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        st.session_state.chat_history.append({"role": "user", "content": html.escape(user_input)})
+
         
         if st.session_state.question_count >= MAX_QUESTIONS:
             st.session_state.final_message = "Thank you for completing the full interview! I have all the information I need."
