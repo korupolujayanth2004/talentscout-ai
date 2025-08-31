@@ -32,6 +32,11 @@ class ChatResponse(BaseModel):
 async def startup_event():
     create_collection()
 
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "talentscout-backend"}
+
+
 @app.get("/greet")
 def greet():
     return {
@@ -93,16 +98,25 @@ async def parse_resume(file: UploadFile = File(...)):
 def chat_endpoint(req: ChatRequest):
     try:
         sentiment = analyze_sentiment(req.user_message)
-        
-        messages = [{"role": "system", "content": "You are a professional interviewer. Ask candidate questions based on context. Be polite and adaptive."}]
-        for msg in req.conversation_history:
-            messages.append(msg)
-        messages.append({"role": "user", "content": req.user_message})
-        reply_text = chat_with_llm(messages)
 
+        # Build properly sanitized messages array
+        messages = [{"role": "system", "content": "You are a professional interviewer. Ask candidate questions based on context. Be polite and adaptive."}]
+        
+        # Safely process conversation history
+        for msg in req.conversation_history:
+            if isinstance(msg, dict):
+                role = msg.get("role")
+                content = msg.get("content")
+                if role in ("user", "assistant", "system") and isinstance(content, str) and content.strip():
+                    messages.append({"role": role, "content": content})
+
+        messages.append({"role": "user", "content": req.user_message})
+
+        reply_text = chat_with_llm(messages)
         return ChatResponse(reply=reply_text, sentiment=sentiment)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/clear-session")
 def clear_session(session: CandidateSessionId = Body(...)):
