@@ -2,73 +2,83 @@ name: Deploy Backend to Hugging Face Space
 
 on:
   push:
-    branches: [ "main" ]  
+    branches: ["main"]  
 
 jobs:
   deploy-backend:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repo
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      # 2️⃣ Setup Python
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      # 3️⃣ Install huggingface CLI
-      - name: Install huggingface CLI
+      - name: Install Hugging Face CLI
         run: |
           python -m pip install --upgrade pip
-          pip install huggingface_hub
+          pip install "huggingface_hub[cli]"
 
-      # 4️⃣ Configure git
-      - name: Configure git
+      - name: Configure git identity
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
 
-      # 5️⃣ Prepare deployment folder
-      - name: Prepare backend for deployment
+      # Prepare deploy directory with a Dockerized FastAPI backend
+      - name: Prepare Docker Space payload
         run: |
-          mkdir deploy
+          rm -rf deploy && mkdir -p deploy
+          # Copy backend sources
           cp -r backend/* deploy/
 
-          # Add a minimal README for Hugging Face
-          cat <<EOT >> deploy/README.md
----
-title: TalentScout AI Backend
-emoji: 🤖
-colorFrom: blue
-colorTo: green
-sdk: streamlit
-sdk_version: "1.27.0"
-app_file: main.py
-pinned: false
----
-Minimal backend deployment for TalentScout AI.
-EOT
+          # Ensure requirements.txt exists (adjust if your file is named differently)
+          if [ ! -f deploy/requirements.txt ]; then
+            echo "uvicorn[standard]" >> deploy/requirements.txt
+            echo "fastapi" >> deploy/requirements.txt
+          fi
 
-      # 6️⃣ Install backend requirements
-      - name: Install backend requirements
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r deploy/requirements.txt
+          # Create Dockerfile for FastAPI on port 7860
+          cat > deploy/Dockerfile << 'EOF'
+          FROM python:3.10-slim
+          ENV PYTHONDONTWRITEBYTECODE=1 \
+              PYTHONUNBUFFERED=1
+          WORKDIR /app
+          COPY requirements.txt /app/requirements.txt
+          RUN pip install --no-cache-dir -r /app/requirements.txt
+          COPY . /app
+          # Spaces proxy expects Docker Spaces to listen on 7860
+          ENV PORT=7860
+          CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
+          EOF
 
-      # 7️⃣ Push to Hugging Face Space
-      - name: Push backend to Hugging Face Space
+          # Space metadata: set sdk to docker (not streamlit)
+          cat > deploy/README.md << 'EOF'
+          ---
+          title: TalentScout AI Backend
+          emoji: 🤖
+          colorFrom: blue
+          colorTo: green
+          sdk: docker
+          pinned: false
+          ---
+          FastAPI backend for TalentScout AI (Docker Space).
+          - Exposes uvicorn on port 7860
+          - Use the Space base URL as BACKEND_URL in the frontend
+          EOF
+
+      - name: Push to Hugging Face Space (Docker)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           cd deploy
           git init
           git lfs install
-          git remote add origin https://user:$HF_TOKEN@huggingface.co/spaces/Jayanthk2004/TalentScout-Ai
-          
+          # Replace owner/space with your Space path
+          git remote add origin https://user:${HF_TOKEN}@huggingface.co/spaces/Jayanthk2004/TalentScout-Ai
           git add .
-          git commit -m "Auto deploy backend from GitHub Actions" || echo "No changes to commit"
+          git commit -m "Deploy FastAPI backend via GitHub Actions" || echo "No changes to commit"
           git branch -M main
           git push --force origin main
