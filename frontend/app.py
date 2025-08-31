@@ -2,8 +2,8 @@ import streamlit as st
 import requests
 import re
 import time
-
-BACKEND_URL = "http://localhost:8000"
+import os
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
 
 # Page configuration with dark theme
 st.set_page_config(
